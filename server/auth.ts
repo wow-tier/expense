@@ -59,20 +59,49 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/register", async (req, res, next) => {
-    const existingUser = await storage.getUserByUsername(req.body.username);
-    if (existingUser) {
-      return res.status(400).send("Username already exists");
+    try {
+      // Validate required fields
+      const { username, email, fullName, password } = req.body;
+      
+      if (!username || !email || !fullName || !password) {
+        return res.status(400).json({ 
+          message: "All fields are required" 
+        });
+      }
+
+      // Check for existing user by username
+      const existingUserByUsername = await storage.getUserByUsername(username);
+      if (existingUserByUsername) {
+        return res.status(400).json({ 
+          message: "Username already exists" 
+        });
+      }
+
+      // Check for existing user by email
+      const existingUserByEmail = await storage.getUserByEmail(email);
+      if (existingUserByEmail) {
+        return res.status(400).json({ 
+          message: "Email already exists" 
+        });
+      }
+
+      const user = await storage.createUser({
+        username: username.trim(),
+        email: email.trim().toLowerCase(),
+        fullName: fullName.trim(),
+        password: await hashPassword(password),
+      });
+
+      req.login(user, (err) => {
+        if (err) return next(err);
+        res.status(201).json(user);
+      });
+    } catch (error) {
+      console.error("Registration error:", error);
+      res.status(500).json({ 
+        message: "Registration failed. Please try again." 
+      });
     }
-
-    const user = await storage.createUser({
-      ...req.body,
-      password: await hashPassword(req.body.password),
-    });
-
-    req.login(user, (err) => {
-      if (err) return next(err);
-      res.status(201).json(user);
-    });
   });
 
   app.post("/api/login", passport.authenticate("local"), (req, res) => {
