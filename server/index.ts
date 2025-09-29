@@ -1,5 +1,5 @@
 import express, { type Request, Response, NextFunction, Express } from "express";
-import { setupAuth } from "./auth";
+import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app: Express = express();
@@ -28,9 +28,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Mount auth routes (sessions + passport + login/register)
-setupAuth(app);
-
 // Global error handler
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   const status = err.status || err.statusCode || 500;
@@ -38,14 +35,17 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   console.error(err);
 });
 
-// SPA or Vite setup (only after API routes)
+// SPA or Vite setup and server startup
 (async () => {
+  // Mount all routes (auth + API routes)
+  const httpServer = await registerRoutes(app);
+
   if (app.get("env") === "development") {
-    await setupVite(app, app);
+    await setupVite(app, httpServer);
   } else {
     serveStatic(app); // This should include a catch-all for the frontend
   }
 
-  const port = parseInt(process.env.PORT || "4100", 10);
-  app.listen(port, "0.0.0.0", () => log(`Expense app running on port ${port}`));
+  const port = parseInt(process.env.PORT || "5000", 10);
+  httpServer.listen(port, "0.0.0.0", () => log(`Expense app running on port ${port}`));
 })();
