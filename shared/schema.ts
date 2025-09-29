@@ -56,6 +56,9 @@ export const insertUserSchema = createInsertSchema(users).pick({
   password: true,
   email: true,
   fullName: true,
+}).extend({
+  fullName: z.string().min(1, "Full name is required"),
+  email: z.string().email("Please enter a valid email address"),
 });
 
 export const insertExpenseSchema = createInsertSchema(expenses).omit({
